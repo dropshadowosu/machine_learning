@@ -19,7 +19,7 @@ base_dir = r'F:\worldview2\Basic, Dallas, ,USA, 40cm_053951940010\ml_datasets\tr
 base_dir = r'D:\data\machine_learning\worldview\dallas\grayscale'
 # base_dir = r'C:\dev\data\cnn_deconv'
 base_dir = r'C:\dev\data\machine_learning\road_detection\grayscale'
-base_dir = '/home/ec2-user/src/data/wv2/grayscale'
+# base_dir = '/home/ec2-user/src/data/wv2/grayscale'
 
 save_dir = os.path.join(base_dir, 'checkpoints')
 save_path = os.path.join(save_dir, '20161212')
@@ -53,7 +53,7 @@ raw_files.sort()
 truth_files.sort()
 
 ntrain = int(0.5 * len(raw_files))
-ntrain = 5000
+ntrain = 10000
 train_inds = np.random.choice(np.arange(len(raw_files)), ntrain, replace=False)
 test_inds = np.setdiff1d(np.arange(len(raw_files)), train_inds)
 test_inds = np.random.choice(test_inds, 200, replace=False)
@@ -235,7 +235,6 @@ def main_network(images, training):
             conv2d(kernel=5, depth=32, name='layer_conv3',
                    batch_normalize=True). \
             flatten(). \
-            fully_connected(size=1024, name='layer_fc1'). \
             softmax_classifier(num_classes, labels=y_true)
             # .dropout(0.8)
     # with pt.defaults_scope(activation_fn=tf.nn.relu, phase=phase):
@@ -391,7 +390,7 @@ output_conv1 = get_layer_output(layer_name='layer_conv1')
 #
 # Once the TensorFlow graph has been created, we have to create a TensorFlow session which is used to execute the graph.
 # Change this to 1 if you want to use the GPU, I was having problems with it working for me.
-session_config = tf.ConfigProto(device_count={'GPU': 1})
+session_config = tf.ConfigProto(device_count={'GPU': 0})
 
 session = tf.Session(config=session_config)
 

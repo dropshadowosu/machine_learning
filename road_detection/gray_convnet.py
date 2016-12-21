@@ -55,13 +55,14 @@ class RoadDetectCNN(object):
         self.truth_files.sort()
 
     def set_train_test(self, train_pct=0.9):
-        self.image_size = 128
+        self.image_size = 256
+        self.truth_size = 128
         ntrain = int(train_pct * len(self.raw_files))
-        # ntrain = 5000
+        ntrain = 5000
         train_inds = np.random.choice(np.arange(len(self.raw_files)), ntrain,
                                       replace=False)
         test_inds = np.setdiff1d(np.arange(len(self.raw_files)), train_inds)
-        # test_inds = np.random.choice(test_inds, 200, replace=False)
+        test_inds = np.random.choice(test_inds, 200, replace=False)
         ntest = len(test_inds)
 
         train_files = np.array(self.raw_files)[train_inds].tolist()
@@ -73,44 +74,53 @@ class RoadDetectCNN(object):
         images_train = np.zeros((len(train_files), self.image_size,
                                  self.image_size, 1),
                                 dtype='uint8')
+        print('\nLoading training images. ' + str(len(train_files)) + ' files.')
         for ix, f in enumerate(train_files):
             images_train[ix, :, :, 0] = misc.imread(f)
+            if np.mod(ix, 500) == 0:
+                print('..' + str(ix), end='', flush=True)
 
         # Load in the train truth
         truth_train = np.zeros((len(train_targets),
-                                self.image_size * self.image_size),
+                                self.truth_size * self.truth_size),
                                dtype='uint8')
+        print('\nLoading training truth. ' + str(len(train_targets)) + ' '
+                                                                       'files.')
         for ix, f in enumerate(train_targets):
-            truth_train[ix, :] = misc.imread(f).flatten()
+            truth_train[ix, :] = misc.imresize(misc.imread(f),
+                                               (self.truth_size,
+                                                self.truth_size)).flatten()
+            if np.mod(ix, 500) == 0:
+                print('..' + str(ix), end='', flush=True)
 
         # Load in the test images
         images_test = np.zeros((len(test_files), self.image_size,
                                 self.image_size, 1),
                                dtype='uint8')
+        print('\nLoading testing images. ' + str(len(test_files)) + ' files.')
         for ix, f in enumerate(test_files):
             images_test[ix, :, :, 0] = misc.imread(f)
+            if np.mod(ix, 100) == 0:
+                print('..' + str(ix), end='', flush=True)
 
         # Load in the test truth
         truth_test = np.zeros((len(test_targets),
-                               self.image_size * self.image_size),
+                               self.truth_size * self.truth_size),
                               dtype='uint8')
+        print('\nLoading testing truth. ' + str(len(test_targets)) + ' files.')
         for ix, f in enumerate(test_targets):
-            truth_test[ix, :] = misc.imread(f).flatten()
+            truth_test[ix, :] = misc.imresize(misc.imread(f),
+                                              (self.truth_size,
+                                               self.truth_size)).flatten()
+            if np.mod(ix, 100) == 0:
+                print('..' + str(ix), end='', flush=True)
 
-        cls_train = truth_train
-        labels_train = truth_train
-
-        cls_test = truth_test
-        labels_test = truth_test
-
-        num_channels = images_train.shape[-1]
-
-        self.num_classes = self.image_size * self.image_size
+        self.num_classes = self.truth_size * self.truth_size
 
         # Images are stored in one-dimensional arrays of this length.
         self.img_size_flat = self.image_size * self.image_size
 
-        print("Size of:")
+        print("\nSize of:")
         print("- Training-set:\t\t{}".format(len(images_train)))
         print("- Test-set:\t\t{}".format(len(images_test)))
 
@@ -131,24 +141,20 @@ class RoadDetectCNN(object):
         # the use of so-called batch-normalization in the first layer.
         with pt.defaults_scope(activation_fn=tf.nn.relu, phase=phase):
             y_pred, loss = x_pretty. \
-                dropout(0.8). \
                 conv2d(kernel=3, depth=8,
                        name='layer_conv1',
                        batch_normalize=True). \
                 max_pool(kernel=2, stride=2). \
-                dropout(0.8). \
                 conv2d(kernel=3, depth=16,
                        name='layer_conv2',
                        batch_normalize=True). \
                 max_pool(kernel=2, stride=2). \
-                dropout(0.8). \
                 conv2d(kernel=5, depth=32,
                        name='layer_conv3',
                        batch_normalize=True). \
                 max_pool(kernel=2, stride=2). \
-                dropout(0.8). \
                 flatten(). \
-                fully_connected(size=10000, name='layer_fc1'). \
+                fully_connected(size=2000, name='layer_fc1'). \
                 softmax_classifier(self.num_classes, labels=self.y_true)
 
         return y_pred, loss
@@ -302,7 +308,7 @@ class RoadDetectCNN(object):
 
         return images
 
-    def train_main(self, images, labels, batch_size=64, gpu_count=0):
+    def train_main(self, images, labels, batch_size=64, gpu_count=1):
         # First create a TensorFlow variable that keeps track of the number of
         # optimization iterations performed so far. In the previous tutorials
         # this was a Python variable, but in this tutorial we want to save this
@@ -316,7 +322,7 @@ class RoadDetectCNN(object):
         # The `create_network()` function returns both `y_pred` and `loss`, but
         # we only need the `loss`-function during training.
         _, loss = self.create_main_network(images,
-                                           np.product(labels.shape),
+                                           labels.shape[1],
                                            training=True)
 
         # Create an optimizer which will minimize the `loss`-function.
@@ -332,7 +338,8 @@ class RoadDetectCNN(object):
         # class-labels `y_pred` for the input images, as well as the
         # `loss`-function to be used during optimization. During testing we only
         # need `y_pred`.
-        y_pred, _ = self.create_main_network(training=False)
+        y_pred, _ = self.create_main_network(images, labels.shape[1],
+                                             training=False)
 
         # Then we create a vector of booleans telling us whether the predicted
         # class equals the true class of each image.
