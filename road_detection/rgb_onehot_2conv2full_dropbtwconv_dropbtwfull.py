@@ -5,7 +5,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 import time
-from datetime import timedelta
+from datetime import timedelta, datetime
 import math
 import os
 import scipy.misc as misc
@@ -23,7 +23,7 @@ if __name__ == "__main__":
     # base_dir = r'D:\data\machine_learning\worldview\dallas\rgb_onehot'
     base_dir = '/home/ec2-user/src/data/wv2/rgb_onehot'
 
-    save_dir = os.path.join(base_dir, 'checkpoints_' + '2_conv_2_full_no_drop')
+    save_dir = os.path.join(base_dir, 'checkpoints_' + '2_conv_2_full_drop_btw_conv_drop_btw_full')
     save_path = os.path.join(save_dir, '20161212')
     # Create the directory if it does not exist.
 
@@ -225,11 +225,13 @@ if __name__ == "__main__":
                 conv2d(kernel=3, depth=3, name='layer_conv1',
                        batch_normalize=True). \
                 max_pool(kernel=2, stride=2). \
+                dropout(0.9). \
                 conv2d(kernel=3, depth=3, name='layer_conv2',
                        batch_normalize=True). \
                 max_pool(kernel=2, stride=2). \
                 flatten(). \
                 fully_connected(size=1024, name='layer_fc1'). \
+                dropout(0.8). \
                 fully_connected(size=256, name='layer_fc2'). \
                 softmax_classifier(2, labels=y_true)
 
